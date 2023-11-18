@@ -1,0 +1,4 @@
+.vscode
+*.o
+*.skel.h
+network_monitor

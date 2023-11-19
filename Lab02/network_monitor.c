@@ -30,6 +30,10 @@ static int dump_l3l4protos_map(struct bpf_map *map)
 	int err;
 	struct ip_port key;
 
+	printf("# Source IP\t sport\t Destination IP\t dport\t pkt\tbytes\ttime\n");
+	
+	/*printf("# Source IP\t\tsport\tDestination IP\t\tdport\tproto\tpkt\tbytes\n");*/
+
 	/* This libbpf helper allows to iterate over all keys of an eBPF map.
 	 * Refer to its definition in libbpf.h for more details on how it works
 	 */
@@ -43,11 +47,14 @@ static int dump_l3l4protos_map(struct bpf_map *map)
 			return -1;
 		}
 
-		printf("%d.%d.%d.%d --> %d.%d.%d.%d (%d -> %d) %s % li pkts, % li bytes\n ",
+		/*  %d.%d.%d.%d\t%d\t%d.%d.%d.%d\t%d\t%s%lipkts\t%libytes\n */
+		printf("%d.%d.%d.%d\t %d\t %d.%d.%d.%d\t %d\t %li\t%li\t%lu\n",
 			   key.ip_src[0], key.ip_src[1], key.ip_src[2], key.ip_src[3],
+			   bpf_ntohs(key.port_src),
 			   key.ip_dst[0], key.ip_dst[1], key.ip_dst[2], key.ip_dst[3],
-			   bpf_ntohs(key.port_src), bpf_ntohs(key.port_dst), iptype_to_proto(key.protocol),
-			   val.pkts, val.bytes);
+			   bpf_ntohs(key.port_dst),
+			   /*iptype_to_proto(key.protocol),*/
+			   val.pkts, val.bytes, val.last_update);
 
 		err = bpf_map__get_next_key(map, &key, &key, sizeof(key));
 	}

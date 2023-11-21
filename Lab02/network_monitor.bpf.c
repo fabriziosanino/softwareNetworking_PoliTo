@@ -33,20 +33,6 @@ struct callback_ctx
 	struct __sk_buff *ctx;
 };
 
-static long int check_time(struct bpf_map *map, struct ip_port *key, struct proto_stats *val,
-		   struct callback_ctx *data_ctx)
-{
-	uint64_t now = bpf_ktime_get_ns();
-
-	struct __sk_buff *ctx = data_ctx->ctx;
-	if ((now - val->last_update) > 60000000000)
-	{
-		bpf_map_delete_elem(&l3l4protos_stats, key);
-	}
-
-	return 0;
-}
-
 /* The main program that will be executed every time the hook is triggered.
  * The SEC("tc") macro provides a hint to libbpf to where the program will be
  * attached.
@@ -94,9 +80,9 @@ int tc_prog(struct __sk_buff *ctx)
 		uint8_t ip_len = 4 * (ip->lenver & 0X0F); // Shift to get only len value
 
 		/* Interpret the third part of the packet as tcp header */
-		struct tcphdr *tcp = data + sizeof(*eth) + ip_len + 2;
+		struct tcphdr *tcp = data + sizeof(*eth) + ip_len ;
 
-		if (data + sizeof(*eth) + ip_len + sizeof(*tcp) + 20 > data_end)
+		if (data + sizeof(*eth) + ip_len + sizeof(*tcp) > data_end)
 		{
 			/* The packet is malformed, the TC_ACT_SHOT return code
 			 * instructs the kernel to drop it
@@ -106,20 +92,20 @@ int tc_prog(struct __sk_buff *ctx)
 
 		/* Look for an existing entry in the hash map */
 		// CHIEDERE XKè NON CI STA .protocol
-		struct ip_port key;
-		memcpy(key.ip_src, ip->ip_src, sizeof(__u8) * 4);
-		memcpy(key.ip_dst, ip->ip_dst, sizeof(__u8) * 4);
+		struct ip_port key = { 0 };
+		memcpy(&key.ip_src, &ip->ip_src, sizeof(__u8) * 4);
+		memcpy(&key.ip_dst, &ip->ip_dst, sizeof(__u8) * 4);
 		key.port_src = tcp->src_port;
 		key.port_dst = tcp->dst_port;
-		// key.protocol = ip->ip_p;
+		key.protocol = ip->ip_p;
 
 		/* Look for the oppisite entry (Part2 - Bi-Directional session monitor) */
-		struct ip_port keyOpposite;
-		memcpy(keyOpposite.ip_src, ip->ip_dst, sizeof(__u8) * 4);
-		memcpy(keyOpposite.ip_dst, ip->ip_src, sizeof(__u8) * 4);
+		struct ip_port keyOpposite = { 0 };
+		memcpy(&keyOpposite.ip_src, &ip->ip_dst, sizeof(__u8) * 4);
+		memcpy(&keyOpposite.ip_dst, &ip->ip_src, sizeof(__u8) * 4);
 		keyOpposite.port_src = tcp->dst_port;
 		keyOpposite.port_dst = tcp->src_port;
-		// keyOpposite.protocol = ip->ip_p;
+		keyOpposite.protocol = ip->ip_p;
 
 		int newElement = 0;
 
@@ -213,8 +199,6 @@ int tc_prog(struct __sk_buff *ctx)
 	struct callback_ctx data_ctx = {
 		.ctx = ctx,
 	};
-
-	bpf_for_each_map_elem(&l3l4protos_stats, check_time, &data_ctx, 0);
 
 	/* The TC_ACT_OK return code lets the packet proceed up in the network
 	 * stack for ingress packets or out of a net device for egress ones

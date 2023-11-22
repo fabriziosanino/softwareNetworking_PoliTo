@@ -9,7 +9,8 @@
 
 static volatile int stop = 0;
 
-int time = 0;
+uint64_t time = 0;
+int firstTime = 0;
 
 static void handle_sigint(int signo)
 {
@@ -32,7 +33,8 @@ static int dump_l3l4protos_map(struct bpf_map *map)
 	int err;
 	struct ip_port key;
 
-	time += 1;
+	if(firstTime == 1)
+		time += 10;
 
 	printf("# Source IP\t sport\t Destination IP\t dport\t protocol\t pkt\tbytes\ttime\n");
 
@@ -49,7 +51,12 @@ static int dump_l3l4protos_map(struct bpf_map *map)
 			return -1;
 		}
 
-		if ( (time * 1000000000000000) - val.last_update > 1){
+		if(firstTime == 0) {
+			time = val.last_update;
+			firstTime = 1;
+		}
+
+		if (abs(time - val.last_update) > 10){
 			bpf_map__delete_elem(map, &key, sizeof(key), 0);
 		} else {
 			printf("%d.%d.%d.%d\t %d\t %d.%d.%d.%d\t %d\t %s\t\t %li\t%li\t%lu\n",

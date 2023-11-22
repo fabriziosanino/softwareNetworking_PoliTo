@@ -169,7 +169,7 @@ int tc_prog(struct __sk_buff *ctx)
 				__sync_fetch_and_add(&val->pkts, 1);
 				__sync_fetch_and_add(&val->bytes, (data_end - data));
 				val->last_update = 0;
-				__sync_fetch_and_add(&val->last_update, bpf_ktime_get_ns());
+				__sync_fetch_and_add(&val->last_update, bpf_ktime_get_ns() / 1000000000);
 
 				/* The bpf_trace_printk() helper can be used to print debug messages to
 				 * the kernel trace pipe. The pipe is accessible reading the file
@@ -180,13 +180,13 @@ int tc_prog(struct __sk_buff *ctx)
 				__sync_fetch_and_add(&valOpposite->pkts, 1);
 				__sync_fetch_and_add(&valOpposite->bytes, (data_end - data));
 				valOpposite->last_update = 0;
-				__sync_fetch_and_add(&valOpposite->last_update, bpf_ktime_get_ns());
+				__sync_fetch_and_add(&valOpposite->last_update, bpf_ktime_get_ns() / 100000000);
 			}
 		} else {
 			__sync_fetch_and_add(&val->pkts, 1);
 			__sync_fetch_and_add(&val->bytes, (data_end - data));
 			val->last_update = 0;
-			__sync_fetch_and_add(&val->last_update, bpf_ktime_get_ns());
+			__sync_fetch_and_add(&val->last_update, bpf_ktime_get_ns() / 100000000);
 		}
 
 		bpf_printk("Processed packet\n");
